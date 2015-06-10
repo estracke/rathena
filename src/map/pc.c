@@ -2893,22 +2893,22 @@ void pc_bonus(struct map_session_data *sd,int type,int val)
 			if(sd->state.lr_flag != 2)
 				sd->bonus.unstripable_equip |= EQP_SHIELD;
 			break;
-		case SP_HP_DRAIN_VALUE:
+		case SP_HP_DRAIN_VALUE: // bonus bHPDrainValue,n;
 			if(!sd->state.lr_flag) {
-				sd->right_weapon.hp_drain_class[CLASS_NORMAL].value += val;
-				sd->right_weapon.hp_drain_class[CLASS_BOSS].value += val;
+				sd->right_weapon.hp_drain_class[CLASS_NORMAL] += val;
+				sd->right_weapon.hp_drain_class[CLASS_BOSS] += val;
 			} else if(sd->state.lr_flag == 1) {
-				sd->left_weapon.hp_drain_class[CLASS_NORMAL].value += val;
-				sd->left_weapon.hp_drain_class[CLASS_BOSS].value += val;
+				sd->left_weapon.hp_drain_class[CLASS_NORMAL] += val;
+				sd->left_weapon.hp_drain_class[CLASS_BOSS] += val;
 			}
 			break;
-		case SP_SP_DRAIN_VALUE:
+		case SP_SP_DRAIN_VALUE: // bonus bSPDrainValue,n;
 			if(!sd->state.lr_flag) {
-				sd->right_weapon.sp_drain_class[CLASS_NORMAL].value += val;
-				sd->right_weapon.sp_drain_class[CLASS_BOSS].value += val;
+				sd->right_weapon.sp_drain_class[CLASS_NORMAL] += val;
+				sd->right_weapon.sp_drain_class[CLASS_BOSS] += val;
 			} else if(sd->state.lr_flag == 1) {
-				sd->left_weapon.sp_drain_class[CLASS_NORMAL].value += val;
-				sd->left_weapon.sp_drain_class[CLASS_BOSS].value += val;
+				sd->left_weapon.sp_drain_class[CLASS_NORMAL] += val;
+				sd->left_weapon.sp_drain_class[CLASS_BOSS] += val;
 			}
 			break;
 		case SP_SP_GAIN_VALUE:
@@ -2976,6 +2976,21 @@ void pc_bonus(struct map_session_data *sd,int type,int val)
 		case SP_ADDMAXWEIGHT:
 			if (sd->state.lr_flag != 2)
 				sd->max_weight += val;
+			break;
+		case SP_ABSORB_DMG_MAXHP: // bonus bAbsorbDmgMaxHP,n;
+			sd->bonus.absorb_dmg_maxhp = max(sd->bonus.absorb_dmg_maxhp, val);
+			break;
+		case SP_HP_GAIN_ATTACK: // bonus bHPGainAttack,n;
+			sd->bonus.hp_gain_attack += val;
+			break;
+		case SP_SP_GAIN_ATTACK: // bonus bSPGainAttack,n;
+			sd->bonus.sp_gain_attack += val;
+			break;
+		case SP_HP_GAIN_ATTACK_RATE: // bonus bHPGainAttackRate,n;
+			sd->bonus.hp_gain_attack_rate += val;
+			break;
+		case SP_SP_GAIN_ATTACK_RATE: // bonus bSPGainAttackRate,n;
+			sd->bonus.sp_gain_attack_rate += val;
 			break;
 		default:
 			ShowWarning("pc_bonus: unknown type %d %d !\n",type,val);
@@ -3170,69 +3185,33 @@ void pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 		if (!sd->add_mdef[i].rate) //Shift the rest of elements up.
 			memmove(&sd->add_mdef[i], &sd->add_mdef[i+1], sizeof(sd->add_mdef) - (i+1)*sizeof(sd->add_mdef[0]));
 		break;
-	case SP_HP_DRAIN_RATE: // bonus2 bHPDrainRate,n,x;
+	case SP_HP_DRAIN_RATE: // bonus2 bHPDrainRate,x,n;
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.hp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->right_weapon.hp_drain_class[CLASS_NORMAL].per += val;
-			sd->right_weapon.hp_drain_class[CLASS_BOSS].rate += type2;
-			sd->right_weapon.hp_drain_class[CLASS_BOSS].per += val;
+			sd->right_weapon.hp_drain_rate.rate += type2;
+			sd->right_weapon.hp_drain_rate.per += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.hp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->left_weapon.hp_drain_class[CLASS_NORMAL].per += val;
-			sd->left_weapon.hp_drain_class[CLASS_BOSS].rate += type2;
-			sd->left_weapon.hp_drain_class[CLASS_BOSS].per += val;
+			sd->left_weapon.hp_drain_rate.rate += type2;
+			sd->left_weapon.hp_drain_rate.per += val;
 		}
 		break;
-	case SP_HP_DRAIN_VALUE: // bonus2 bHPDrainValue,n,x;
+	case SP_SP_DRAIN_RATE: // bonus2 bSPDrainRate,x,n;
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.hp_drain_class[CLASS_NORMAL].value += type2;
-			sd->right_weapon.hp_drain_class[CLASS_NORMAL].type = val;
-			sd->right_weapon.hp_drain_class[CLASS_BOSS].value += type2;
-			sd->right_weapon.hp_drain_class[CLASS_BOSS].type = val;
+			sd->right_weapon.sp_drain_rate.rate += type2;
+			sd->right_weapon.sp_drain_rate.per += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.hp_drain_class[CLASS_NORMAL].value += type2;
-			sd->left_weapon.hp_drain_class[CLASS_NORMAL].type = val;
-			sd->left_weapon.hp_drain_class[CLASS_BOSS].value += type2;
-			sd->left_weapon.hp_drain_class[CLASS_BOSS].type = val;
+			sd->left_weapon.sp_drain_rate.rate += type2;
+			sd->left_weapon.sp_drain_rate.per += val;
 		}
 		break;
-	case SP_SP_DRAIN_RATE: // bonus2 bSPDrainRate,n,x;
-		if(!sd->state.lr_flag) {
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].per += val;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].rate += type2;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].per += val;
-		}
-		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].per += val;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].rate += type2;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].per += val;
-		}
-		break;
-	case SP_SP_DRAIN_VALUE: // bonus2 bSPDrainValue,n,x;
-		if(!sd->state.lr_flag) {
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].value += type2;
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].type = val;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].value += type2;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].type = val;
-		}
-		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].value += type2;
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].type = val;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].value += type2;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].type = val;
-		}
-		break;
-	case SP_SP_VANISH_RATE: // bonus2 bSPVanishRate,n,x;
+	case SP_SP_VANISH_RATE: // bonus2 bSPVanishRate,x,n;
 		if(sd->state.lr_flag != 2) {
 			sd->bonus.sp_vanish_rate += type2;
 			sd->bonus.sp_vanish_per += val;
 		}
 		break;
-	case SP_HP_VANISH_RATE: // bonus2 bHPVanishRate,n,x;
+	case SP_HP_VANISH_RATE: // bonus2 bHPVanishRate,x,n;
 		if(sd->state.lr_flag != 2) {
 			sd->bonus.hp_vanish_rate += type2;
 			sd->bonus.hp_vanish_per += val;
@@ -3447,37 +3426,37 @@ void pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 	case SP_HP_DRAIN_VALUE_RACE: // bonus2 bHPDrainValueRace,r,n;
 		PC_BONUS_CHK_RACE(type2,SP_HP_DRAIN_VALUE_RACE);
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.hp_drain_race[type2].value += val;
+			sd->right_weapon.hp_drain_race[type2] += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.hp_drain_race[type2].value += val;
+			sd->left_weapon.hp_drain_race[type2] += val;
 		}
 		break;
 	case SP_SP_DRAIN_VALUE_RACE: // bonus2 bSPDrainValueRace,r,n;
 		PC_BONUS_CHK_RACE(type2,SP_SP_DRAIN_VALUE_RACE);
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.sp_drain_race[type2].value += val;
+			sd->right_weapon.sp_drain_race[type2] += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.sp_drain_race[type2].value += val;
+			sd->left_weapon.sp_drain_race[type2] += val;
 		}
 		break;
-	case SP_HP_DRAIN_VALUE_CLASS: // bonus2 bSpDrainValueClass,c,n;
+	case SP_HP_DRAIN_VALUE_CLASS: // bonus2 bHPDrainValueClass,c,n;
 		PC_BONUS_CHK_CLASS(type2,SP_HP_DRAIN_VALUE_CLASS);
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.hp_drain_class[type2].value += val;
+			sd->right_weapon.hp_drain_class[type2] += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.hp_drain_class[type2].value += val;
+			sd->left_weapon.hp_drain_class[type2] += val;
 		}
 		break;
-	case SP_SP_DRAIN_VALUE_CLASS: // bonus2 bSPDrainValue,n,x;
+	case SP_SP_DRAIN_VALUE_CLASS: // bonus2 bSPDrainValueClass,c,n;
 		PC_BONUS_CHK_CLASS(type2,SP_SP_DRAIN_VALUE_CLASS);
 		if(!sd->state.lr_flag) {
-			sd->right_weapon.sp_drain_class[type2].value += val;
+			sd->right_weapon.sp_drain_class[type2] += val;
 		}
 		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.sp_drain_class[type2].value += val;
+			sd->left_weapon.sp_drain_class[type2] += val;
 		}
 		break;
 	case SP_IGNORE_MDEF_RACE_RATE: // bonus2 bIgnoreMdefRaceRate,r,n;
@@ -3642,6 +3621,39 @@ void pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 			sd->skillusesp[i].val = val;
 		}
 		break;
+	case SP_HP_GAIN_RACE_ATTACK_RATE: // bonus2 bHPGainRaceAttackRate,r,n;
+		PC_BONUS_CHK_RACE(type2,SP_HP_GAIN_RACE_ATTACK_RATE);
+		sd->hp_gain_race_attack_rate[type2] += val;
+		break;
+	case SP_SP_GAIN_RACE_ATTACK_RATE: // bonus2 bSPGainRaceAttackRate,r,n;
+		PC_BONUS_CHK_RACE(type2,SP_SP_GAIN_RACE_ATTACK_RATE);
+		sd->sp_gain_race_attack_rate[type2] += val;
+		break;
+	case SP_HP_GAIN_ATTACK_RATE: // bonus2 bHPGainAttackRate,x,n;
+		sd->hp_gain_attack.rate += type2;
+		sd->hp_gain_attack.per += val;
+		break;
+	case SP_SP_GAIN_ATTACK_RATE: // bonus2 bSPGainAttackRate,x,n;
+		sd->sp_gain_attack.rate += type2;
+		sd->sp_gain_attack.per += val;
+		break;
+	case SP_SUB_SKILL: // bonus2 bSubSkill,sk,n;
+		ARR_FIND(0, ARRAYLENGTH(sd->subskill), i, sd->subskill[i].id == type2 || sd->subskill[i].id == 0);
+		if (i == ARRAYLENGTH(sd->subskill)) {
+			ShowError("pc_bonus2: SP_SUB_SKILL: Reached max (%d) number of skills per character, bonus skill %d (%d) lost.\n", ARRAYLENGTH(sd->subskill), type2, val);
+			break;
+		}
+		if (sd->subskill[i].id == type2)
+			sd->subskill[i].val += val;
+		else {
+			sd->subskill[i].id = type2;
+			sd->subskill[i].val = val;
+		}
+		break;
+	case SP_SUBDEF_ELE: // bonus2 bSubDefEle,e,x;
+		PC_BONUS_CHK_ELEMENT(type2,SP_SUBDEF_ELE);
+		sd->subdefele[type2] += val;
+		break;
 	default:
 		ShowWarning("pc_bonus2: unknown type %d %d %d!\n",type,type2,val);
 		break;
@@ -3688,25 +3700,6 @@ void pc_bonus3(struct map_session_data *sd,int type,int type2,int type3,int val)
 			target = target&INF_SUPPORT_SKILL || (target&INF_SELF_SKILL && !(skill_get_inf2(type2)&INF2_NO_TARGET_SELF));
 			pc_bonus_autospell(sd->autospell2, ARRAYLENGTH(sd->autospell2),
 				target?-type2:type2, type3, val, BF_NORMAL|BF_SKILL, current_equip_card_id);
-		}
-		break;
-	case SP_SP_DRAIN_RATE: // bonus3 bSPDrainRate,n,x,y;
-		if(!sd->state.lr_flag) {
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].per += type3;
-			sd->right_weapon.sp_drain_class[CLASS_NORMAL].type = val;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].rate += type2;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].per += type3;
-			sd->right_weapon.sp_drain_class[CLASS_BOSS].type = val;
-
-		}
-		else if(sd->state.lr_flag == 1) {
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].rate += type2;
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].per += type3;
-			sd->left_weapon.sp_drain_class[CLASS_NORMAL].type = val;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].rate += type2;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].per += type3;
-			sd->left_weapon.sp_drain_class[CLASS_BOSS].type = val;
 		}
 		break;
 	case SP_ADD_MONSTER_DROP_ITEMGROUP: // bonus3 bAddMonsterDropItemGroup,ig,r,n;
@@ -3757,19 +3750,19 @@ void pc_bonus3(struct map_session_data *sd,int type,int type2,int type3,int val)
 			pc_bonus_subele(sd, (unsigned char)type2, type3, val);
 		break;
 		
-	case SP_SP_VANISH_RACE_RATE: // bonus3 bSPVanishRaceRate,r,n,x;
+	case SP_SP_VANISH_RACE_RATE: // bonus3 bSPVanishRaceRate,r,x,n;
 		PC_BONUS_CHK_RACE(type2,SP_SP_VANISH_RACE_RATE);
 		if(sd->state.lr_flag != 2) {
-			sd->vanish_race[type2].sp_rate += type3;
-			sd->vanish_race[type2].sp_per += val;
+			sd->sp_vanish_race[type2].rate += type3;
+			sd->sp_vanish_race[type2].per += val;
 		}
 		break;
 
-	case SP_HP_VANISH_RACE_RATE: // bonus3 bHPVanishRaceRate,r,n,x;
+	case SP_HP_VANISH_RACE_RATE: // bonus3 bHPVanishRaceRate,r,x,n;
 		PC_BONUS_CHK_RACE(type2,SP_HP_VANISH_RACE_RATE);
 		if(sd->state.lr_flag != 2) {
-			sd->vanish_race[type2].hp_rate += type3;
-			sd->vanish_race[type2].hp_per += val;
+			sd->hp_vanish_race[type2].rate += type3;
+			sd->hp_vanish_race[type2].per += val;
 		}
 		break;
 
@@ -7114,6 +7107,18 @@ int pc_skillatk_bonus(struct map_session_data *sd, uint16 skill_id)
 	return bonus;
 }
 
+int pc_sub_skillatk_bonus(struct map_session_data *sd, uint16 skill_id)
+{
+	int i, bonus = 0;
+	nullpo_ret(sd);
+
+	ARR_FIND(0, ARRAYLENGTH(sd->subskill), i, sd->subskill[i].id == skill_id);
+	if( i < ARRAYLENGTH(sd->subskill) )
+		bonus = sd->subskill[i].val;
+
+	return bonus;
+}
+
 int pc_skillheal_bonus(struct map_session_data *sd, uint16 skill_id) {
 	int i, bonus = sd->bonus.add_heal_rate;
 
@@ -8906,6 +8911,8 @@ bool pc_setreg2(struct map_session_data *sd, const char *reg, int val) {
 			return pc_setreg(sd, add_str(reg), val);
 		case '#':
 			return (reg[1] == '#') ? pc_setaccountreg2(sd, reg, val) : pc_setaccountreg(sd, reg, val);
+		default:
+			return pc_setglobalreg(sd, reg, val);
 	}
 
 	return false;
@@ -8937,6 +8944,8 @@ int pc_readreg2(struct map_session_data *sd, const char *reg) {
 			return pc_readreg(sd, add_str(reg));
 		case '#':
 			return (reg[1] == '#') ? pc_readaccountreg2(sd, reg) : pc_readaccountreg(sd, reg);
+		default:
+			return pc_readglobalreg(sd, reg);
 	}
 
 	return 0;
@@ -11422,43 +11431,6 @@ void pc_bonus_script_clear(struct map_session_data *sd, uint16 flag) {
 	pc_bonus_script_check_final(sd);
 
 	if (count && !(flag&BSF_REM_ON_LOGOUT)) //Don't need to do this if log out
-		status_calc_pc(sd,SCO_NONE);
-}
-
-/**
-* Clear all bonus script from player
-* @param sd
-* @param flag &1 - Remove permanent bonus_script, &2 - Logout
-* @author [Cydh]
-**/
-void pc_bonus_script_clear_all(struct map_session_data *sd, uint8 flag) {
-	struct linkdb_node *node = NULL;
-	uint16 count = 0;
-
-	if (!sd || !(node = sd->bonus_script.head))
-		return;
-
-	while (node) {
-		struct linkdb_node *next = node->next;
-		struct s_bonus_script_entry *entry = (struct s_bonus_script_entry *)node->data;
-
-		if (entry && (
-				!(entry->flag&BSF_PERMANENT) ||
-				((flag&1) && entry->flag&BSF_PERMANENT)
-				)
-			)
-		{
-			linkdb_erase(&sd->bonus_script.head, (void *)((intptr_t)entry));
-			pc_bonus_script_free_entry(sd, entry);
-			count++;
-		}
-
-		node = next;
-	}
-
-	pc_bonus_script_check_final(sd);
-
-	if (count && !(flag&2))
 		status_calc_pc(sd,SCO_NONE);
 }
 
