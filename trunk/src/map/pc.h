@@ -82,13 +82,15 @@ struct weapon_data {
 	int addclass[CLASS_MAX];
 	int addrace2[RC2_MAX];
 	int addsize[SZ_MAX];
+	short hp_drain_race[RC_MAX];
+	short sp_drain_race[RC_MAX];
+	short hp_drain_class[CLASS_MAX];
+	short sp_drain_class[CLASS_MAX];
 
 	struct drain_data {
-		short rate;
-		short per;
-		short value;
-		unsigned type:1;
-	} hp_drain_race[RC_MAX], sp_drain_race[RC_MAX], hp_drain_class[CLASS_MAX], sp_drain_class[CLASS_MAX];
+		short rate; ///< Success rate 10000 = 100%
+		short per;  ///< Drain value/rate per attack
+	} hp_drain_rate, sp_drain_rate;
 
 	struct {
 		short class_, rate;
@@ -321,6 +323,7 @@ struct map_session_data {
 	// here start arrays to be globally zeroed at the beginning of status_calc_pc()
 	int param_bonus[6],param_equip[6]; //Stores card/equipment bonuses.
 	int subele[ELE_MAX];
+	int subdefele[ELE_MAX];
 	int subrace[RC_MAX];
 	int subclass[CLASS_MAX];
 	int subrace2[RC2_MAX];
@@ -349,6 +352,8 @@ struct map_session_data {
 	short sp_gain_race[RC_MAX];
 	short sp_gain_race_attack[RC_MAX];
 	short hp_gain_race_attack[RC_MAX];
+	short hp_gain_race_attack_rate[RC_MAX];
+	short sp_gain_race_attack_rate[RC_MAX];
 	// zeroed arrays end here.
 
 	// zeroed structures start here
@@ -359,7 +364,9 @@ struct map_session_data {
 	struct s_skill_bonus { //skillatk raises bonus dmg% of skills, skillheal increases heal%, skillblown increases bonus blewcount for some skills.
 		unsigned short id;
 		short val;
-	} skillatk[MAX_PC_BONUS], skillusesprate[MAX_PC_BONUS], skillusesp[MAX_PC_BONUS], skillheal[MAX_PC_BONUS], skillheal2[MAX_PC_BONUS], skillblown[MAX_PC_BONUS], skillcastrate[MAX_PC_BONUS], skillcooldown[MAX_PC_BONUS], skillfixcast[MAX_PC_BONUS], skillvarcast[MAX_PC_BONUS], skillfixcastrate[MAX_PC_BONUS];
+	} skillatk[MAX_PC_BONUS], skillusesprate[MAX_PC_BONUS], skillusesp[MAX_PC_BONUS], skillheal[MAX_PC_BONUS],
+		skillheal2[MAX_PC_BONUS], skillblown[MAX_PC_BONUS], skillcastrate[MAX_PC_BONUS], skillcooldown[MAX_PC_BONUS],
+		skillfixcast[MAX_PC_BONUS], skillvarcast[MAX_PC_BONUS], skillfixcastrate[MAX_PC_BONUS], subskill[MAX_PC_BONUS];
 	struct s_regen {
 		short value;
 		int rate;
@@ -381,12 +388,10 @@ struct map_session_data {
 		short value;
 		int rate, tick;
 	} def_set_race[RC_MAX], mdef_set_race[RC_MAX];
-	struct s_bonus_vanish_race {
-		short hp_rate, ///< Rate 0 - 10000 (100%)
-			hp_per,	   ///< % HP vanished
-			sp_rate,   ///< Rate 0 - 10000 (100%)
-			sp_per;	   ///< % SP vanished
-	} vanish_race[RC_MAX];
+	struct s_bonus_vanish_gain {
+		short rate,	///< Success rate 0 - 1000 (100%)
+			per;	///< % HP/SP vanished/gained
+	} hp_vanish_race[RC_MAX], sp_vanish_race[RC_MAX], hp_gain_attack, sp_gain_attack;
 	// zeroed structures end here
 
 	// manually zeroed structures start here.
@@ -433,6 +438,9 @@ struct map_session_data {
 		int add_fixcast, add_varcast; // in milliseconds
 		int ematk; // matk bonus from equipment
 		int eatk; // atk bonus from equipment
+		uint8 absorb_dmg_maxhp; // [Cydh]
+		short hp_gain_attack, sp_gain_attack;
+		short hp_gain_attack_rate, sp_gain_attack_rate;
 	} bonus;
 	// zeroed vars end here.
 
@@ -985,6 +993,7 @@ void pc_check_available_item(struct map_session_data *sd);
 int pc_useitem(struct map_session_data*,int);
 
 int pc_skillatk_bonus(struct map_session_data *sd, uint16 skill_id);
+int pc_sub_skillatk_bonus(struct map_session_data *sd, uint16 skill_id);
 int pc_skillheal_bonus(struct map_session_data *sd, uint16 skill_id);
 int pc_skillheal2_bonus(struct map_session_data *sd, uint16 skill_id);
 

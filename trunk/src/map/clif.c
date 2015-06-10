@@ -1403,6 +1403,8 @@ void clif_hominfo(struct map_session_data *sd, struct homun_data *hd, int flag)
 	int htype;
 
 	nullpo_retv(hd);
+	if (!sd)
+		return;
 
 	status  = &hd->battle_status;
 	htype = hom_class2type(hd->homunculus.class_);
@@ -15351,7 +15353,7 @@ void clif_parse_cashshop_buy(int fd, struct map_session_data *sd) {
 
 	info = &packet_db[sd->packet_ver][cmd];
 
-	if( sd->state.trading || !sd->npc_shopid ) {
+	if( sd->state.trading || !sd->npc_shopid || !cash_shop_defined) {
 		clif_cashshop_ack(sd,1);
 		return;
 	} else {

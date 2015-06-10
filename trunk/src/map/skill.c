@@ -1606,8 +1606,10 @@ int skill_additional_effect(struct block_list* src, struct block_list *bl, uint1
 		sc_start4(src,bl,SC_BURNING,55+5*skill_lv,skill_lv,1000,src->id,0,skill_get_time(skill_id,skill_lv));
 		break;
 	case NC_MAGMA_ERUPTION:
-		sc_start4(src, bl, SC_BURNING, 10 * skill_lv, skill_lv, 1000, src->id, 0, skill_get_time2(skill_id, skill_lv));
-		sc_start(src, bl, SC_STUN, 10 * skill_lv, skill_lv, skill_get_time(skill_id, skill_lv));
+		if (attack_type == BF_WEAPON) // Stun effect from 'slam'
+			sc_start(src, bl, SC_STUN, 90, skill_lv, skill_get_time(skill_id, skill_lv));
+		if (attack_type == BF_MISC) // Burning effect from 'eruption'
+			sc_start4(src, bl, SC_BURNING, 10 * skill_lv, skill_lv, 1000, src->id, 0, skill_get_time2(skill_id, skill_lv));
 		break;
 	case GC_DARKCROW:
 		sc_start(src,bl,SC_DARKCROW,100,skill_lv,skill_get_time(skill_id,skill_lv));
@@ -3422,8 +3424,7 @@ static int skill_check_unit_range_sub(struct block_list *bl, va_list ap)
 		case MH_STEINWAND:
 		case MG_SAFETYWALL:
 		case SC_MAELSTROM:
-		case SO_ELEMENTAL_SHIELD:
-			if(g_skill_id != MH_STEINWAND && g_skill_id != MG_SAFETYWALL && g_skill_id != AL_PNEUMA && g_skill_id != SC_MAELSTROM && g_skill_id != SO_ELEMENTAL_SHIELD)
+			if(g_skill_id != MH_STEINWAND && g_skill_id != MG_SAFETYWALL && g_skill_id != AL_PNEUMA && g_skill_id != SC_MAELSTROM)
 				return 0;
 			break;
 		case AL_WARP:
@@ -3972,6 +3973,9 @@ static int skill_timerskill(int tid, unsigned int tick, int id, intptr_t data)
 						skill_unitsetting(src,skl->skill_id,skl->skill_lv,skl->x,skl->y,0);
 					}
 					break;
+				case NC_MAGMA_ERUPTION:
+					skill_unitsetting(src,skl->skill_id,skl->skill_lv,skl->x,skl->y,0);
+					break;
 			}
 		}
 	} while (0);
@@ -4212,6 +4216,7 @@ int skill_castend_damage_id (struct block_list* src, struct block_list *bl, uint
 	case RA_AIMEDBOLT:
 	case NC_AXEBOOMERANG:
 	case NC_POWERSWING:
+	case NC_MAGMA_ERUPTION:
 	case GC_CROSSIMPACT:
 	case GC_VENOMPRESSURE:
 	case SC_TRIANGLESHOT:
@@ -5661,39 +5666,6 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 					return 0;
 				}
 				return skill_castend_damage_id (src, bl, skill_id, skill_lv, tick, flag);
-			}
-			break;
-		case SO_ELEMENTAL_SHIELD: {
-				struct party_data *p;
-				short ret = 0;
-				int x0, y0, x1, y1, range;
-
-				if(sd == NULL || !sd->ed)
-					break;
-				if((p = party_search(sd->status.party_id)) == NULL)
-					break;
-				range = skill_get_splash(skill_id,skill_lv);
-				x0 = sd->bl.x - range;
-				y0 = sd->bl.y - range;
-				x1 = sd->bl.x + range;
-				y1 = sd->bl.y + range;
-				elemental_delete(sd->ed,0);
-				if(!skill_check_unit_range(src,src->x,src->y,skill_id,skill_lv))
-					ret = skill_castend_pos2(src,src->x,src->y,skill_id,skill_lv,tick,flag);
-				for(i = 0; i < MAX_PARTY; i++) {
-					struct map_session_data *psd = p->data[i].sd;
-
-					if(!psd)
-						continue;
-					if(psd->bl.m != sd->bl.m || !psd->bl.prev)
-						continue;
-					if(range && (psd->bl.x < x0 || psd->bl.y < y0 ||
-						psd->bl.x > x1 || psd->bl.y > y1))
-						continue;
-					if(!skill_check_unit_range(bl,psd->bl.x,psd->bl.y,skill_id,skill_lv))
-						ret |= skill_castend_pos2(bl,psd->bl.x,psd->bl.y,skill_id,skill_lv,tick,flag);
-				}
-				return ret;
 			}
 			break;
 		case NPC_SMOKING: //Since it is a self skill, this one ends here rather than in damage_id. [Skotlex]
@@ -8002,7 +7974,7 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 	// Slim Pitcher
 	case CR_SLIMPITCHER:
 		// Updated to block Slim Pitcher from working on barricades and guardian stones.
-		if( dstmd && (dstmd->mob_id == MOBID_EMPERIUM || (dstmd->mob_id >= MOBID_BARRICADE1 && dstmd->mob_id <= MOBID_GUARIDAN_STONE2)) )
+		if( dstmd && (dstmd->mob_id == MOBID_EMPERIUM || (dstmd->mob_id >= MOBID_BARRICADE1 && dstmd->mob_id <= MOBID_GUARDIAN_STONE2)) )
 			break;
 		if (potion_hp || potion_sp) {
 			int hp = potion_hp, sp = potion_sp;
@@ -9835,7 +9807,7 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 		if( sd ) {
 			int elemental_class = skill_get_elemental_type(skill_id,skill_lv);
 
-			// Remove previous elemental fisrt.
+			// Remove previous elemental first.
 			if( sd->ed )
 				elemental_delete(sd->ed,0);
 
@@ -10384,7 +10356,21 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 		break;
 
 	case SO_ELEMENTAL_SHIELD:
-		// Used to avoid displaying the warning below.
+		if (!sd || sd->status.party_id == 0 || flag&1) {
+			if (sd && sd->status.party_id == 0) {
+				clif_skill_nodamage(src,bl,skill_id,skill_lv,1);
+				if (sd->ed && skill_get_state(skill_id) == ST_ELEMENTALSPIRIT2)
+					elemental_delete(sd->ed,0);
+			}
+			skill_unitsetting(bl, MG_SAFETYWALL, skill_lv + 5, bl->x, bl->y, 0);
+			skill_unitsetting(bl, AL_PNEUMA, 1, bl->x, bl->y, 0);
+		}
+		else {
+			clif_skill_nodamage(src,bl,skill_id,skill_lv,1);
+			if (sd->ed && skill_get_state(skill_id) == ST_ELEMENTALSPIRIT2)
+				elemental_delete(sd->ed,0);
+			party_foreachsamemap(skill_area_sub, sd, skill_get_splash(skill_id,skill_lv), src, skill_id, skill_lv, tick, flag|BCT_PARTY|1, skill_castend_nodamage_id);
+		}
 		break;
 
 	default:
@@ -11182,9 +11168,7 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 	case MH_POISON_MIST:
 	case MH_STEINWAND:
 	case MH_XENO_SLASHER:
-	case NC_MAGMA_ERUPTION:
 	case LG_KINGS_GRACE:
-	case SO_ELEMENTAL_SHIELD:
 	case RL_B_TRAP:
 		flag|=1;//Set flag to 1 to prevent deleting ammo (it will be deleted on group-delete).
 	case GS_GROUNDDRIFT: //Ammo should be deleted right away.
@@ -11746,6 +11730,17 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 				}
 				skill_addtimerskill(src,gettick() + (40 * w),0,sx,sy,skill_id,skill_lv,dir,flag);
 			}
+		}
+		break;
+
+	case NC_MAGMA_ERUPTION:
+		// 1st, AoE 'slam' damage
+		i = skill_get_splash(skill_id, skill_lv);
+		map_foreachinarea(skill_area_sub, src->m, x-i, y-i, x+i, y+i, BL_CHAR,
+			src, skill_id, skill_lv, tick, flag|BCT_ENEMY|1, skill_castend_damage_id);
+		if (skill_get_unit_id(NC_MAGMA_ERUPTION,0)) {
+			// 2nd, AoE 'eruption' unit
+			skill_addtimerskill(src,gettick()+500,0,x,y,skill_id,skill_lv,BF_MISC,flag);
 		}
 		break;
 
@@ -12347,6 +12342,11 @@ struct skill_unit_group *skill_unitsetting(struct block_list *src, uint16 skill_
 		val1 = x;
 		val2 = y;
 		val3 = 0; // Suck target at n seconds.
+		break;
+	case NC_MAGMA_ERUPTION:
+		// Since we have no 'place' anymore. time1 for Stun duration, time2 for burning duration
+		// Officially, duration (limit) is 5secs, interval 0.5secs damage interval.
+		limit = interval * 10;
 		break;
 	}
 
@@ -13680,7 +13680,6 @@ int skill_unit_onleft(uint16 skill_id, struct block_list *bl, unsigned int tick)
 		case GN_FIRE_EXPANSION_SMOKE_POWDER:
 		case GN_FIRE_EXPANSION_TEAR_GAS:
 		case LG_KINGS_GRACE:
-		case SO_ELEMENTAL_SHIELD:
 			if (sce)
 				status_change_end(bl, type, INVALID_TIMER);
 			break;
@@ -14700,7 +14699,7 @@ bool skill_check_condition_castbegin(struct map_session_data* sd, uint16 skill_i
 		case SR_CURSEDCIRCLE:
 			if (map_flag_gvg(sd->bl.m)) {
 			    if (map_foreachinrange(mob_count_sub, &sd->bl, skill_get_splash(skill_id, skill_lv), BL_MOB,
-				    MOBID_EMPERIUM, MOBID_GUARIDAN_STONE1, MOBID_GUARIDAN_STONE2)) {
+				    MOBID_EMPERIUM, MOBID_GUARDIAN_STONE1, MOBID_GUARDIAN_STONE2)) {
 				char output[128];
 				sprintf(output,"%s",msg_txt(sd,382)); // You're too close to a stone or emperium to use this skill.
 				clif_colormes(sd,color_table[COLOR_RED], output);
@@ -14878,6 +14877,7 @@ bool skill_check_condition_castbegin(struct map_session_data* sd, uint16 skill_i
 			}
 			break;
 		case ST_ELEMENTALSPIRIT:
+		case ST_ELEMENTALSPIRIT2:
 			if(!sd->ed) {
 				clif_skill_fail(sd,skill_id,USESKILL_FAIL_EL_SUMMON,0);
 				return false;
@@ -20088,6 +20088,7 @@ static bool skill_parse_row_requiredb(char* split[], int columns, int current)
 	else if( strcmpi(split[10],"ridingwarg")          == 0 ) skill_db[idx]->require.state = ST_RIDINGWUG;
 	else if( strcmpi(split[10],"mado")                == 0 ) skill_db[idx]->require.state = ST_MADO;
 	else if( strcmpi(split[10],"elementalspirit")     == 0 ) skill_db[idx]->require.state = ST_ELEMENTALSPIRIT;
+	else if( strcmpi(split[10],"elementalspirit2")    == 0 ) skill_db[idx]->require.state = ST_ELEMENTALSPIRIT2;
 	else if( strcmpi(split[10],"peco")                == 0 ) skill_db[idx]->require.state = ST_PECO;
 	else skill_db[idx]->require.state = ST_NONE;	// Unknown or no state
 
